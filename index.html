@@ -37,54 +37,49 @@
     <button id="readyBtn" class="btn-ready">ESTOU PRONTO PARA O SHOW</button>
     <div id="status">Desconectado do servidor</div>
 
+    <video id="videoElement" autoplay playsinline style="display:none;"></video>
+
     <script>
         let videoTrack = null;
-        
-        // --- COLOQUE O SEU LINK DO RENDER ABAIXO ---
-        const socket = io('https://servidor-show-luzes.onrender.com/'); 
+        const videoElement = document.getElementById('videoElement');
+        const socket = io('https://servidor-show-luzes.onrender.com/'); // Mantenha seu link aqui
 
         const readyBtn = document.getElementById('readyBtn');
         const statusDiv = document.getElementById('status');
 
-        // Monitorar conexão
-        socket.on('connect', () => {
-            statusDiv.innerText = "Conectado ao servidor. Aguardando autorização...";
-        });
-
         readyBtn.onclick = async () => {
             try {
-                // Solicita acesso à câmera para usar a lanterna
+                // Adicionamos 'audio: false' e forçamos o vídeo para garantir o fluxo
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
+                    video: { facingMode: 'environment' },
+                    audio: false 
                 });
+                
+                videoElement.srcObject = stream; // Necessário para o iOS liberar o hardware
                 videoTrack = stream.getVideoTracks()[0];
                 
                 readyBtn.style.display = 'none';
-                statusDiv.innerText = "Sincronizado! Aguarde o início do show.";
-                statusDiv.style.opacity = "1";
+                statusDiv.innerText = "Sincronizado! O LED deve funcionar agora.";
             } catch (e) { 
-                statusDiv.innerText = "Erro ao acessar lanterna. Verifique as permissões."; 
-                console.error(e);
+                statusDiv.innerText = "Erro: " + e.message; 
             }
         };
 
-        // Escutando os comandos que você envia do Painel Admin
-        socket.on('comando_show', (data) => {
-            // data chega como { cor: '#ffffff', luz: true }
-            
-            // 1. Muda a cor da tela
+        socket.on('comando_show', async (data) => {
             document.body.style.backgroundColor = data.cor;
 
-            // 2. Controla a lanterna
             if (videoTrack) {
-                const capabilities = videoTrack.getCapabilities();
-                if (capabilities.torch) {
-                    videoTrack.applyConstraints({ 
-                        advanced: [{ torch: data.luz }] 
-                    }).catch(err => console.error("Erro na lanterna:", err));
+                try {
+                    // Tentativa robusta de aplicar o comando da lanterna
+                    await videoTrack.applyConstraints({
+                        advanced: [{ torch: data.luz }]
+                    });
+                } catch (err) {
+                    console.warn("Lanterna não suportada neste dispositivo/navegador.");
                 }
             }
         });
     </script>
 </body>
 </html>
+
