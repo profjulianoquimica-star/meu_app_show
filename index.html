@@ -3,65 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Show de Luzes - Player</title>
+    <title>Show de Luzes - Público</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        body { margin: 0; background: #000; color: white; font-family: sans-serif; 
-               display: flex; flex-direction: column; align-items: center; justify-content: center; 
-               height: 100vh; overflow: hidden; transition: background 0.1s; }
-        #status { font-size: 14px; opacity: 0.6; position: absolute; bottom: 20px; }
-        button { padding: 20px 40px; font-size: 18px; cursor: pointer; border-radius: 50px; 
-                 border: none; background: #fff; color: #000; font-weight: bold; }
+        body { 
+            margin: 0; 
+            background: #000; 
+            color: white; 
+            font-family: sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            overflow: hidden; 
+            transition: background 0.1s; 
+        }
+        #status { font-size: 12px; position: absolute; bottom: 20px; opacity: 0.5; }
+        .btn-ready { 
+            padding: 20px 40px; 
+            background: #27ae60; 
+            color: white; 
+            border-radius: 50px; 
+            font-weight: bold; 
+            border: none; 
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body>
 
-    <button id="startBtn">ENTRAR NO SHOW</button>
-    <div id="status">Aguardando autorização...</div>
+    <button id="readyBtn" class="btn-ready">ESTOU PRONTO PARA O SHOW</button>
+    <div id="status">Desconectado do servidor</div>
 
     <script>
         let videoTrack = null;
-        const body = document.body;
-        const statusDiv = document.getElementById('status');
-        const startBtn = document.getElementById('startBtn');
+        
+        // --- COLOQUE O SEU LINK DO RENDER ABAIXO ---
+        const socket = io('https://servidor-show-luzes.onrender.com/'); 
 
-        // 1. Pedir acesso à câmera/lanterna
-        startBtn.onclick = async () => {
+        const readyBtn = document.getElementById('readyBtn');
+        const statusDiv = document.getElementById('status');
+
+        // Monitorar conexão
+        socket.on('connect', () => {
+            statusDiv.innerText = "Conectado ao servidor. Aguardando autorização...";
+        });
+
+        readyBtn.onclick = async () => {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                // Solicita acesso à câmera para usar a lanterna
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
                 videoTrack = stream.getVideoTracks()[0];
-                startBtn.style.display = 'none';
-                statusDiv.innerText = "Conectado. Aguardando sequência...";
                 
-                // Simulação de uma sequência recebida do servidor
-                executarSequenciaExemplo();
-            } catch (err) {
-                statusDiv.innerText = "Erro: " + err.message;
+                readyBtn.style.display = 'none';
+                statusDiv.innerText = "Sincronizado! Aguarde o início do show.";
+                statusDiv.style.opacity = "1";
+            } catch (e) { 
+                statusDiv.innerText = "Erro ao acessar lanterna. Verifique as permissões."; 
+                console.error(e);
             }
         };
 
-        function aplicarComando(ligarLanterna, corFundo) {
-            body.style.backgroundColor = corFundo;
+        // Escutando os comandos que você envia do Painel Admin
+        socket.on('comando_show', (data) => {
+            // data chega como { cor: '#ffffff', luz: true }
+            
+            // 1. Muda a cor da tela
+            document.body.style.backgroundColor = data.cor;
+
+            // 2. Controla a lanterna
             if (videoTrack) {
                 const capabilities = videoTrack.getCapabilities();
                 if (capabilities.torch) {
-                    videoTrack.applyConstraints({ advanced: [{ torch: ligarLanterna }] });
+                    videoTrack.applyConstraints({ 
+                        advanced: [{ torch: data.luz }] 
+                    }).catch(err => console.error("Erro na lanterna:", err));
                 }
             }
-        }
-
-        function executarSequenciaExemplo() {
-            const seq = [
-                { time: 1000, torch: true, color: '#ff0000' },
-                { time: 1500, torch: false, color: '#000000' },
-                { time: 2000, torch: true, color: '#0000ff' },
-                { time: 2500, torch: false, color: '#000000' },
-                { time: 3000, torch: true, color: '#ffffff' }
-            ];
-
-            seq.forEach(passo => {
-                setTimeout(() => aplicarComando(passo.torch, passo.color), passo.time);
-            });
-        }
+        });
     </script>
 </body>
 </html>
