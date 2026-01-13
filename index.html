@@ -63,6 +63,15 @@
             } catch (e) { 
                 statusDiv.innerText = "Erro: " + e.message; 
             }
+            const caps = videoTrack.getCapabilities();
+const suporte = caps.torch ? "SIM" : "NÃO";
+statusDiv.innerText = "Suporta Lanterna: " + suporte;
+
+if (caps.torch) {
+    statusDiv.style.color = "#00ff00"; // Verde se suportar
+} else {
+    statusDiv.style.color = "#ff0000"; // Vermelho se não suportar
+}
         };
 
 socket.on('comando_show', async (data) => {
@@ -97,6 +106,7 @@ socket.on('comando_show', async (data) => {
     </script>
 </body>
 </html>
+
 
 
 
