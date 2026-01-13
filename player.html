@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Show de Luzes - Player</title>
+    <style>
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; 
+               display: flex; flex-direction: column; align-items: center; justify-content: center; 
+               height: 100vh; overflow: hidden; transition: background 0.1s; }
+        #status { font-size: 14px; opacity: 0.6; position: absolute; bottom: 20px; }
+        button { padding: 20px 40px; font-size: 18px; cursor: pointer; border-radius: 50px; 
+                 border: none; background: #fff; color: #000; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <button id="startBtn">ENTRAR NO SHOW</button>
+    <div id="status">Aguardando autorização...</div>
+
+    <script>
+        let videoTrack = null;
+        const body = document.body;
+        const statusDiv = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+
+        // 1. Pedir acesso à câmera/lanterna
+        startBtn.onclick = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                videoTrack = stream.getVideoTracks()[0];
+                startBtn.style.display = 'none';
+                statusDiv.innerText = "Conectado. Aguardando sequência...";
+                
+                // Simulação de uma sequência recebida do servidor
+                executarSequenciaExemplo();
+            } catch (err) {
+                statusDiv.innerText = "Erro: " + err.message;
+            }
+        };
+
+        function aplicarComando(ligarLanterna, corFundo) {
+            body.style.backgroundColor = corFundo;
+            if (videoTrack) {
+                const capabilities = videoTrack.getCapabilities();
+                if (capabilities.torch) {
+                    videoTrack.applyConstraints({ advanced: [{ torch: ligarLanterna }] });
+                }
+            }
+        }
+
+        function executarSequenciaExemplo() {
+            const seq = [
+                { time: 1000, torch: true, color: '#ff0000' },
+                { time: 1500, torch: false, color: '#000000' },
+                { time: 2000, torch: true, color: '#0000ff' },
+                { time: 2500, torch: false, color: '#000000' },
+                { time: 3000, torch: true, color: '#ffffff' }
+            ];
+
+            seq.forEach(passo => {
+                setTimeout(() => aplicarComando(passo.torch, passo.color), passo.time);
+            });
+        }
+    </script>
+</body>
+</html>
