@@ -66,32 +66,37 @@
         };
 
 socket.on('comando_show', async (data) => {
-    // 1. Muda a cor da tela imediatamente
+    // Muda a cor de fundo imediatamente
     document.body.style.backgroundColor = data.cor;
 
     if (videoTrack) {
-        // Criamos uma pequena função de tentativa
-        const tentarLuz = async (tentativas) => {
-            for (let i = 0; i < tentativas; i++) {
-                try {
-                    await videoTrack.applyConstraints({
-                        advanced: [{ torch: data.luz }]
-                    });
-                    // Se chegar aqui, funcionou!
-                    break; 
-                } catch (err) {
-                    console.warn(`Tentativa ${i+1} falhou:`, err);
-                    // Espera 100ms antes de tentar de novo
-                    await new Promise(r => setTimeout(r, 100));
-                }
-            }
-        };
+        try {
+            // Criamos o objeto de configuração
+            const constraints = {
+                advanced: [
+                    { 
+                        // Forçamos o estado da lanterna
+                        torch: data.luz,
+                        // No Samsung, às vezes o foco precisa estar em 'manual' para liberar o LED
+                        focusMode: data.luz ? 'manual' : 'continuous'
+                    }
+                ]
+            };
 
-        tentarLuz(3); // Tenta 3 vezes
+            await videoTrack.applyConstraints(constraints);
+        } catch (err) {
+            console.error("Erro ao aplicar luz:", err);
+            // Plano B: Tenta apenas a luz sem o foco
+            videoTrack.applyConstraints({ advanced: [{ torch: data.luz }] }).catch(e => {
+                statusDiv.innerText = "Hardware recusou LED: " + e.message;
+            });
+        }
     }
 });
+
     </script>
 </body>
 </html>
+
 
 
