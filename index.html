@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Show de Luzes - Público</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
@@ -10,7 +10,7 @@
             margin: 0; 
             background: #000; 
             color: white; 
-            font-family: sans-serif; 
+            font-family: 'Segoe UI', Arial, sans-serif; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
@@ -19,94 +19,80 @@
             overflow: hidden; 
             transition: background 0.1s; 
         }
-        #status { font-size: 12px; position: absolute; bottom: 20px; opacity: 0.5; }
+        #config {
+            text-align: center;
+            background: rgba(40, 40, 40, 0.9);
+            padding: 30px;
+            border-radius: 20px;
+            width: 80%;
+            max-width: 300px;
+        }
+        select {
+            width: 100%;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 10px;
+            border: none;
+            font-size: 18px;
+            background: #444;
+            color: white;
+        }
         .btn-ready { 
-            padding: 20px 40px; 
+            padding: 20px 0; 
+            width: 100%;
             background: #27ae60; 
             color: white; 
-            border-radius: 50px; 
+            border-radius: 15px; 
             font-weight: bold; 
             border: none; 
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            font-size: 18px;
         }
+        #status { margin-top: 20px; font-size: 12px; opacity: 0.6; }
     </style>
 </head>
 <body>
 
-    <button id="readyBtn" class="btn-ready">ESTOU PRONTO PARA O SHOW</button>
-    <div id="status">Desconectado do servidor</div>
+    <div id="config">
+        <h2>BEM-VINDO!</h2>
+        <p>Escolha seu Setor:</p>
+        <select id="meuSetor">
+            <option value="1">Setor 1</option>
+            <option value="2">Setor 2</option>
+            <option value="3">Setor 3</option>
+            <option value="4">Setor 4</option>
+            <option value="5">Setor 5</option>
+            <option value="6">Setor 6</option>
+        </select>
+        <button id="readyBtn" class="btn-ready">ESTOU PRONTO</button>
+    </div>
 
-    <video id="videoElement" autoplay playsinline style="display:none;"></video>
+    <div id="status">Conectando...</div>
 
     <script>
-        let videoTrack = null;
-        const videoElement = document.getElementById('videoElement');
-        const socket = io('https://servidor-show-luzes.onrender.com/'); // Mantenha seu link aqui
+        // --- COLOQUE O SEU LINK DO RENDER ABAIXO ---
+        const socket = io('https://servidor-show-luzes.onrender.com'); 
 
-        const readyBtn = document.getElementById('readyBtn');
+        const configDiv = document.getElementById('config');
         const statusDiv = document.getElementById('status');
+        const readyBtn = document.getElementById('readyBtn');
 
-        readyBtn.onclick = async () => {
-            try {
-                // Adicionamos 'audio: false' e forçamos o vídeo para garantir o fluxo
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' },
-                    audio: false 
-                });
-                
-                videoElement.srcObject = stream; // Necessário para o iOS liberar o hardware
-                videoTrack = stream.getVideoTracks()[0];
-                
-                readyBtn.style.display = 'none';
-                statusDiv.innerText = "Sincronizado! O LED deve funcionar agora.";
-            } catch (e) { 
-                statusDiv.innerText = "Erro: " + e.message; 
-            }
-            const caps = videoTrack.getCapabilities();
-const suporte = caps.torch ? "SIM" : "NÃO";
-statusDiv.innerText = "Suporta Lanterna: " + suporte;
+        socket.on('connect', () => { statusDiv.innerText = "Conectado!"; });
 
-if (caps.torch) {
-    statusDiv.style.color = "#00ff00"; // Verde se suportar
-} else {
-    statusDiv.style.color = "#ff0000"; // Vermelho se não suportar
-}
+        readyBtn.onclick = () => {
+            configDiv.style.display = 'none';
+            statusDiv.innerText = "Sincronizado! Aumente o brilho da tela.";
+            // Previne que a tela apague em alguns dispositivos
+            if (navigator.wakeLock) { navigator.wakeLock.request('screen').catch(()=>{}); }
         };
 
-socket.on('comando_show', async (data) => {
-    // Muda a cor de fundo imediatamente
-    document.body.style.backgroundColor = data.cor;
-
-    if (videoTrack) {
-        try {
-            // Criamos o objeto de configuração
-            const constraints = {
-                advanced: [
-                    { 
-                        // Forçamos o estado da lanterna
-                        torch: data.luz,
-                        // No Samsung, às vezes o foco precisa estar em 'manual' para liberar o LED
-                        focusMode: data.luz ? 'manual' : 'continuous'
-                    }
-                ]
-            };
-
-            await videoTrack.applyConstraints(constraints);
-        } catch (err) {
-            console.error("Erro ao aplicar luz:", err);
-            // Plano B: Tenta apenas a luz sem o foco
-            videoTrack.applyConstraints({ advanced: [{ torch: data.luz }] }).catch(e => {
-                statusDiv.innerText = "Hardware recusou LED: " + e.message;
-            });
-        }
-    }
-});
-
+        socket.on('comando_show', (data) => {
+            const setorSelecionado = document.getElementById('meuSetor').value;
+            // Executa se for para o setor dele ou para todos
+            if (data.setor === "todos" || data.setor == setorSelecionado) {
+                document.body.style.backgroundColor = data.cor;
+            }
+        });
     </script>
 </body>
 </html>
-
-
-
-
