@@ -65,21 +65,33 @@
             }
         };
 
-        socket.on('comando_show', async (data) => {
-            document.body.style.backgroundColor = data.cor;
+socket.on('comando_show', async (data) => {
+    // 1. Muda a cor da tela imediatamente
+    document.body.style.backgroundColor = data.cor;
 
-            if (videoTrack) {
+    if (videoTrack) {
+        // Criamos uma pequena função de tentativa
+        const tentarLuz = async (tentativas) => {
+            for (let i = 0; i < tentativas; i++) {
                 try {
-                    // Tentativa robusta de aplicar o comando da lanterna
                     await videoTrack.applyConstraints({
                         advanced: [{ torch: data.luz }]
                     });
+                    // Se chegar aqui, funcionou!
+                    break; 
                 } catch (err) {
-                    console.warn("Lanterna não suportada neste dispositivo/navegador.");
+                    console.warn(`Tentativa ${i+1} falhou:`, err);
+                    // Espera 100ms antes de tentar de novo
+                    await new Promise(r => setTimeout(r, 100));
                 }
             }
-        });
+        };
+
+        tentarLuz(3); // Tenta 3 vezes
+    }
+});
     </script>
 </body>
 </html>
+
 
